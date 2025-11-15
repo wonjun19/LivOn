@@ -900,43 +900,50 @@ export const StreamingPage: React.FC = () => {
                 setChatRoomId(chatRoom.chatRoomId);
 
                 // 과거 메시지 로드 (처음에는 null로 전송하여 전체 메시지 조회)
-                const pastMessages = await getChatMessagesSince(
-                  chatRoom.chatRoomId,
-                  null // 처음 조회 시 null
-                );
-                console.log("🔵 [채팅] 과거 메시지 로드:", {
-                  count: pastMessages.length,
-                });
-
-                // 과거 메시지를 ChatMessage 형식으로 변환
-                // 시스템 메시지(ENTER, LEAVE)인 경우 발신자를 "알림"으로 설정
-                // 빈 메시지는 필터링
-                // 시간대 변환은 ChatPanel에서 처리
-                const convertedMessages: ChatMessage[] = pastMessages
-                  .filter((msg) => msg.content && msg.content.trim() !== "") // 빈 메시지 필터링
-                  .map((msg) => {
-                    const isSystemMessage = 
-                      msg.messageType === "ENTER" || msg.messageType === "LEAVE";
-                    // 서버 응답에 nickname이 포함되어 있을 수 있음 (타입에는 없지만 실제 응답에 포함될 수 있음)
-                    const msgWithNickname = msg as any;
-                    const senderName = isSystemMessage 
-                      ? "알림" 
-                      : msgWithNickname.nickname || msgWithNickname.userNickname || msg.userId;
-                    return {
-                      id: msg.id,
-                      sender: senderName, // 닉네임 우선, 없으면 userId
-                      message: msg.content,
-                      timestamp: new Date(msg.sentAt), // ChatPanel에서 UTC 파싱 및 한국 시간대 변환 처리
-                      timestampString: msg.sentAt, // UTC 시간 문자열 (ChatPanel에서 명시적으로 파싱)
-                      senderUserId: msg.userId,
-                      messageType: msg.messageType,
-                    };
+                try {
+                  const pastMessages = await getChatMessagesSince(
+                    chatRoom.chatRoomId,
+                    null // 처음 조회 시 null
+                  );
+                  console.log("🔵 [채팅] 과거 메시지 로드:", {
+                    count: pastMessages.length,
                   });
-                // 시간순 정렬 (오래된 것부터 최신 순서로 - 최신 메시지가 아래로)
-                const sortedMessages = convertedMessages.sort(
-                  (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-                );
-                setChatMessages(sortedMessages);
+
+                  // 과거 메시지를 ChatMessage 형식으로 변환
+                  // 시스템 메시지(ENTER, LEAVE)인 경우 발신자를 "알림"으로 설정
+                  // 빈 메시지는 필터링
+                  // 시간대 변환은 ChatPanel에서 처리
+                  const convertedMessages: ChatMessage[] = pastMessages
+                    .filter((msg) => msg.content && msg.content.trim() !== "") // 빈 메시지 필터링
+                    .map((msg) => {
+                      const isSystemMessage = 
+                        msg.messageType === "ENTER" || msg.messageType === "LEAVE";
+                      // 서버 응답에 nickname이 포함되어 있을 수 있음 (타입에는 없지만 실제 응답에 포함될 수 있음)
+                      const msgWithNickname = msg as any;
+                      const senderName = isSystemMessage 
+                        ? "알림" 
+                        : msgWithNickname.nickname || msgWithNickname.userNickname || msg.userId;
+                      return {
+                        id: msg.id,
+                        sender: senderName, // 닉네임 우선, 없으면 userId
+                        message: msg.content,
+                        timestamp: new Date(msg.sentAt), // ChatPanel에서 UTC 파싱 및 한국 시간대 변환 처리
+                        timestampString: msg.sentAt, // UTC 시간 문자열 (ChatPanel에서 명시적으로 파싱)
+                        senderUserId: msg.userId,
+                        messageType: msg.messageType,
+                      };
+                    });
+                  // 시간순 정렬 (오래된 것부터 최신 순서로 - 최신 메시지가 아래로)
+                  const sortedMessages = convertedMessages.sort(
+                    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+                  );
+                  setChatMessages(sortedMessages);
+                } catch (pastMessagesError) {
+                  console.error("❌ [채팅] 과거 메시지 로드 실패:", pastMessagesError);
+                  // 과거 메시지 로드 실패 시 빈 배열로 초기화 (실시간 메시지는 계속 수신 가능)
+                  setChatMessages([]);
+                  console.warn("⚠️ [채팅] 과거 메시지를 불러올 수 없습니다. 실시간 메시지는 계속 수신됩니다.");
+                }
 
                 // STOMP 웹소켓 연결 (accessToken은 이미 위에서 가져옴)
                 console.log("🔵 [채팅] STOMP 연결 준비:", {
