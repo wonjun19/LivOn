@@ -79,4 +79,6 @@ public interface ConsultationReservationRepository extends JpaRepository<Consult
                                          @Param("startOfDay") LocalDateTime startOfDay,
                                          @Param("endOfDay") LocalDateTime endOfDay,
                                          @Param("timeSlots") List<String> timeSlots);
+
+    List<Consultation> findByCoachId(UUID id);
 }
